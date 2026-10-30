@@ -238,3 +238,20 @@ def save_plugin_enabled(plugin_name: str, enabled: bool) -> None:
     plugins_cfg[plugin_name] = enabled
     data["plugins_enabled"] = plugins_cfg
     CONFIG_FILE.write_text(json.dumps(data, indent=4), encoding="utf-8")
+
+def get_interactive_ai() -> bool:
+    """Return whether Interactive AI (proactive check-ins) is enabled (default True)."""
+    return bool(load_api_keys().get("interactive_ai", True))
+
+
+def save_interactive_ai(enabled: bool) -> None:
+    """Save whether Interactive AI (proactive check-ins) is enabled."""
+    ensure_config_dir()
+    data: dict = {}
+    if CONFIG_FILE.exists():
+        try:
+            data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            data = {}
+    data["interactive_ai"] = bool(enabled)
+    CONFIG_FILE.write_text(json.dumps(data, indent=4), encoding="utf-8")

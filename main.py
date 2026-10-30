@@ -77,6 +77,7 @@ from actions.background_monitor import (
 from actions.web_search        import _news as _fetch_news_sync
 from memory.config_manager     import (
     get_brief_enabled, get_voice, get_wake_word_enabled, save_wake_word_enabled,    get_input_device, get_output_device,
+    get_interactive_ai, save_interactive_ai,
 )
 from core.plugin_loader        import discover_plugins
 from core                      import undo as undo_stack
@@ -1400,6 +1401,10 @@ class JarvisLive:
         await asyncio.sleep(300)          # wait 5 min after startup before first check
         while True:
             if self.session and self._awake:
+                # Suppress unprompted monitor alerts if muted or Interactive AI is disabled
+                if getattr(self.ui, "muted", False) or not get_interactive_ai():
+                    await asyncio.sleep(30)
+                    continue
                 # Don't interrupt if user spoke recently or JARVIS is mid-sentence
                 with self._speaking_lock:
                     speaking = self._is_speaking
@@ -1438,6 +1443,10 @@ class JarvisLive:
             await asyncio.sleep(60)   # evaluate once per minute
 
             if not self.session or not self._awake:
+                continue
+
+            # Suppress proactive check-ins if muted or Interactive AI is disabled
+            if getattr(self.ui, "muted", False) or not get_interactive_ai():
                 continue
 
             with self._speaking_lock:

@@ -1579,11 +1579,11 @@ class HueWheel(QWidget):
 class CustomizeOverlay(QWidget):
     """Floating overlay — change assistant name, user name, UI colour and voice."""
 
-    saved = pyqtSignal(str, str, str, str)   # assistant_name, user_name, ui_color, voice
+    saved = pyqtSignal(str, str, str, str, bool)   # assistant_name, user_name, ui_color, voice, interactive_ai
     _OW, _OH = 440, 680
 
     def __init__(self, assistant_name="ADAM", user_name="",
-                 ui_color=DEFAULT_UI_COLOR, voice="", parent=None):
+                 ui_color=DEFAULT_UI_COLOR, voice="", interactive_ai=None, parent=None):
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(f"""
@@ -1676,6 +1676,46 @@ class CustomizeOverlay(QWidget):
         p_btn.clicked.connect(lambda: self._key_input.setText(QApplication.clipboard().text().strip()))
         k_row.addWidget(p_btn)
         lay.addLayout(k_row)
+
+        # ── Interactive AI (Proactive Mode) ──────────────────────────────────
+        from memory.config_manager import get_interactive_ai
+        self._interactive_ai_enabled = get_interactive_ai() if interactive_ai is None else bool(interactive_ai)
+
+        lay.addSpacing(6)
+        iai_box = QFrame()
+        iai_box.setStyleSheet(f"""
+            QFrame {{
+                background: #171513;
+                border: 1px solid #2C2824;
+                border-radius: 6px;
+            }}
+        """)
+        iai_lay = QHBoxLayout(iai_box)
+        iai_lay.setContentsMargins(10, 8, 10, 8)
+        iai_lay.setSpacing(10)
+
+        iai_info = QVBoxLayout()
+        iai_info.setSpacing(2)
+        iai_title = QLabel("INTERACTIVE AI")
+        iai_title.setFont(app_font(8, bold=True))
+        iai_title.setStyleSheet(f"color: {C.PRI}; background: transparent; border: none;")
+        iai_desc = QLabel("Proactive check-ins & unprompted suggestions")
+        iai_desc.setFont(app_font(7))
+        iai_desc.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent; border: none;")
+        iai_info.addWidget(iai_title)
+        iai_info.addWidget(iai_desc)
+        iai_lay.addLayout(iai_info, stretch=1)
+
+        self._iai_toggle_btn = QPushButton()
+        self._iai_toggle_btn.setCheckable(True)
+        self._iai_toggle_btn.setChecked(self._interactive_ai_enabled)
+        self._iai_toggle_btn.setFixedSize(56, 24)
+        self._iai_toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._style_iai_btn(self._interactive_ai_enabled)
+        self._iai_toggle_btn.clicked.connect(self._on_iai_toggled)
+        iai_lay.addWidget(self._iai_toggle_btn)
+
+        lay.addWidget(iai_box)
 
 
         # ── Assistant voice — Gemini prebuilt voices ─────────────────────────
@@ -1774,6 +1814,32 @@ class CustomizeOverlay(QWidget):
         btn_row.addWidget(cancel_btn)
         lay.addLayout(btn_row)
 
+    # ── interactive ai ───────────────────────────────────────────────────────
+    def _style_iai_btn(self, enabled: bool):
+        if enabled:
+            self._iai_toggle_btn.setText("ON")
+            self._iai_toggle_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: {C.PRI}; color: #141210;
+                    border: 1px solid {C.PRI}; border-radius: 12px;
+                    font-weight: bold; font-size: 10px;
+                }}
+            """)
+        else:
+            self._iai_toggle_btn.setText("OFF")
+            self._iai_toggle_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: #252320; color: #8C857B;
+                    border: 1px solid #3E3A35; border-radius: 12px;
+                    font-weight: bold; font-size: 10px;
+                }}
+                QPushButton:hover {{ color: {C.TEXT}; border-color: {C.PRI_DIM}; }}
+            """)
+
+    def _on_iai_toggled(self, checked: bool):
+        self._interactive_ai_enabled = checked
+        self._style_iai_btn(checked)
+
     # ── voice selection ──────────────────────────────────────────────────────
     def _on_voice_pick(self, name: str):
         self._sel_voice = name
@@ -1843,7 +1909,9 @@ class CustomizeOverlay(QWidget):
                 save_api_keys(k)
         name = self._name_input.text().strip() or "ADAM"
         user = self._user_input.text().strip()
-        self.saved.emit(name, user, self._sel_color or DEFAULT_UI_COLOR, self._sel_voice)
+        from memory.config_manager import save_interactive_ai
+        save_interactive_ai(self._interactive_ai_enabled)
+        self.saved.emit(name, user, self._sel_color or DEFAULT_UI_COLOR, self._sel_voice, self._interactive_ai_enabled)
         self.hide()
 
 
@@ -5024,6 +5092,7 @@ class MainWindow(QMainWindow):
             cfg.get("user_name", ""),
             cfg.get("ui_color", "") or DEFAULT_UI_COLOR,
             cfg.get("voice_name", ""),
+            interactive_ai=cfg.get("interactive_ai", True),
             parent=cw,
         )
         ow, oh = CustomizeOverlay._OW, CustomizeOverlay._OH
@@ -5045,7 +5114,7 @@ class MainWindow(QMainWindow):
             retheme_all_widgets(old, current_palette())
 
     def _apply_name_update(self, name: str, user_name: str, ui_color: str = "",
-                           voice: str = ""):
+                           voice: str = "", interactive_ai: bool = True):
         """Update all name/theme-dependent UI elements and persist to config."""
         self._assistant_name = name.strip() or "ADAM"
         display = self._assistant_name.upper()
@@ -5076,6 +5145,7 @@ class MainWindow(QMainWindow):
             data = _read_full_config()
             data["assistant_name"] = self._assistant_name
             data["user_name"] = user_name.strip()
+            data["interactive_ai"] = bool(interactive_ai)
             if ui_color:
                 data["ui_color"] = ui_color.strip().lower()
             API_FILE.write_text(json.dumps(data, indent=4), encoding="utf-8")
@@ -5084,6 +5154,7 @@ class MainWindow(QMainWindow):
                 self._log.append_log(f"SYS: UI colour applied — {ui_color}")
             if voice_changed:
                 self._log.append_log(f"SYS: Voice set — {voice}")
+            self._log.append_log(f"SYS: Interactive AI set — {'Enabled' if interactive_ai else 'Disabled'}")
         except Exception as e:
             self._log.append_log(f"ERR: Config save failed — {e}")
 
