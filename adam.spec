@@ -81,10 +81,11 @@ hiddenimports = [
     "keyboard",
 ]
 
-try:
-    hiddenimports += collect_submodules("plyer")
-except Exception:
-    pass
+for _mod in ("plyer", "uvicorn", "fastapi", "starlette", "cryptography", "anyio", "websockets"):
+    try:
+        hiddenimports += collect_submodules(_mod)
+    except Exception:
+        pass
 
 a = Analysis(
     [str(base_dir / "main.py")],

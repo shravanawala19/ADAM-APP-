@@ -35,9 +35,39 @@ try:
 except Exception:
     pass
 
-BASE_DIR    = Path(__file__).resolve().parent.parent
-STATIC_DIR  = Path(__file__).parent / "static"
-PORT        = 8000
+import sys
+
+def _get_base_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent
+    return Path(__file__).resolve().parent.parent
+
+BASE_DIR = _get_base_dir()
+
+def _get_static_dir() -> Path:
+    candidates = [
+        Path(__file__).resolve().parent / "static",
+        BASE_DIR / "dashboard" / "static",
+        BASE_DIR / "_internal" / "dashboard" / "static",
+        Path(sys.executable).parent / "dashboard" / "static",
+        Path(sys.executable).parent / "_internal" / "dashboard" / "static",
+    ]
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.extend([
+            Path(meipass) / "dashboard" / "static",
+            Path(meipass) / "static",
+        ])
+    for c in candidates:
+        try:
+            if c.is_dir() and (c / "login.html").exists():
+                return c
+        except Exception:
+            pass
+    return Path(__file__).resolve().parent / "static"
+
+STATIC_DIR = _get_static_dir()
+PORT       = 8000
 MAX_UPLOAD_MB = 500
 
 
@@ -761,6 +791,7 @@ class DashboardServer:
         asyncio.get_event_loop().run_in_executor(None, _ensure_network_access, PORT + 1)
         cfg = uvicorn.Config(
             self.app, host="0.0.0.0", port=PORT + 1, log_level="warning",
+            log_config=None,
             ssl_keyfile=str(ssl_key), ssl_certfile=str(ssl_cert),
         )
         print(f"[Dashboard] Manual entry:  {self._ip}:{PORT + 1}  (type in browser, accept cert once)")
@@ -785,6 +816,7 @@ class DashboardServer:
 
         cfg = uvicorn.Config(
             self.app, host="0.0.0.0", port=PORT, log_level="warning",
+            log_config=None,
             **({"ssl_keyfile": str(ssl_key), "ssl_certfile": str(ssl_cert)} if use_ssl else {}),
         )
 

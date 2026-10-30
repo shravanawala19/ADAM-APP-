@@ -1559,7 +1559,7 @@ class JarvisLive:
         # Enumerate audio devices off-thread. The settings drawer must never pay
         # for host-API enumeration on the Qt thread.
         audio_devices.prefetch()
-
+ 
         # Start dashboard (optional — needs: pip install fastapi "uvicorn[standard]" cryptography)
         try:
             from dashboard.server import DashboardServer
