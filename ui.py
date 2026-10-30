@@ -30,13 +30,13 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import (
     QBrush, QColor, QConicalGradient, QDragEnterEvent, QDropEvent, QFont,
     QFontDatabase, QKeySequence, QLinearGradient, QPainter, QPainterPath,
-    QIcon, QPen, QPixmap, QRadialGradient, QShortcut,
+    QAction, QIcon, QPen, QPixmap, QRadialGradient, QShortcut,
 )
 from PyQt6.QtWidgets import (
     QApplication, QComboBox, QFileDialog, QFrame, QGraphicsDropShadowEffect,
     QHBoxLayout, QLabel, QLineEdit, QMainWindow, QPushButton, QScrollArea,
     QSizePolicy, QSplitter, QStackedWidget, QTextEdit, QVBoxLayout, QWidget,
-    QProgressBar,
+    QProgressBar, QMenu, QSystemTrayIcon,
 )
 
 # ── Which Mark this is ───────────────────────────────────────────────────────
@@ -3307,6 +3307,9 @@ class MainWindow(QMainWindow):
         self._spotlight = SpotlightBar()
         self._spotlight.command_entered.connect(self.send_command)
         self._spotlight_toggle_sig.connect(self._toggle_spotlight)
+        self._force_quit       = False
+        self._tray_notified    = False
+        self._init_tray()
 
         self._hotkey_listener = GlobalHotkeyThread(self)
         self._hotkey_listener.hotkey_triggered.connect(self._spotlight_toggle_sig.emit)
@@ -5212,6 +5215,7 @@ class MainWindow(QMainWindow):
         self._muted = not self._muted
         self.hud.muted = self._muted
         self._style_mute_btn()
+        self._update_tray_menu()
         if self._muted:
             self._apply_state("MUTED")
             self._log.append_log("SYS: Microphone muted.")
@@ -5272,7 +5276,100 @@ class MainWindow(QMainWindow):
         else:
             self._spotlight.summon()
 
-    def closeEvent(self, event):
+    def _init_tray(self):
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            self._tray_icon = None
+            return
+
+        app_ico = get_adam_icon()
+        if app_ico.isNull():
+            app_ico = self.windowIcon()
+
+        self._tray_icon = QSystemTrayIcon(app_ico, self)
+        self._tray_icon.setToolTip(f"{self._assistant_name} — Personal AI Studio")
+
+        self._tray_menu = QMenu()
+        self._tray_menu.setStyleSheet(f"""
+            QMenu {{
+                background-color: #171513;
+                color: #EDEDED;
+                border: 1px solid #2F2B26;
+                border-radius: 8px;
+                padding: 6px 0;
+                font-family: 'Segoe UI', system-ui, sans-serif;
+                font-size: 13px;
+            }}
+            QMenu::item {{
+                padding: 7px 22px 7px 18px;
+                margin: 2px 4px;
+                border-radius: 4px;
+            }}
+            QMenu::item:selected {{
+                background-color: {C.PRI_GHO};
+                color: {C.PRI};
+            }}
+            QMenu::separator {{
+                height: 1px;
+                background: #2B2824;
+                margin: 4px 8px;
+            }}
+        """)
+
+        act_open = QAction(f"Open {self._assistant_name} Studio", self)
+        act_open.triggered.connect(self._restore_from_tray)
+        self._tray_menu.addAction(act_open)
+
+        act_spotlight = QAction("Summon Spotlight (Alt + Space)", self)
+        act_spotlight.triggered.connect(self._toggle_spotlight)
+        self._tray_menu.addAction(act_spotlight)
+
+        self._tray_menu.addSeparator()
+
+        self._act_tray_mute = QAction("🎙 Mute Mic", self)
+        self._act_tray_mute.triggered.connect(self._toggle_mute)
+        self._tray_menu.addAction(self._act_tray_mute)
+
+        act_settings = QAction("⚙ Settings", self)
+        act_settings.triggered.connect(self._open_customize_from_tray)
+        self._tray_menu.addAction(act_settings)
+
+        self._tray_menu.addSeparator()
+
+        act_quit = QAction(f"✕ Quit {self._assistant_name}", self)
+        act_quit.triggered.connect(self._quit_application)
+        self._tray_menu.addAction(act_quit)
+
+        self._tray_icon.setContextMenu(self._tray_menu)
+        self._tray_icon.activated.connect(self._on_tray_activated)
+        self._tray_icon.show()
+
+    def _update_tray_menu(self):
+        if hasattr(self, "_act_tray_mute") and self._act_tray_mute:
+            if self._muted:
+                self._act_tray_mute.setText("🔇 Unmute Mic")
+            else:
+                self._act_tray_mute.setText("🎙 Mute Mic")
+
+    def _on_tray_activated(self, reason):
+        if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
+            if self.isVisible() and not self.isMinimized():
+                self.hide()
+            else:
+                self._restore_from_tray()
+
+    def _restore_from_tray(self):
+        self.show()
+        if self.isMinimized():
+            self.showNormal()
+        self.raise_()
+        self.activateWindow()
+
+    def _open_customize_from_tray(self):
+        self._restore_from_tray()
+        self._open_customize()
+
+    def _quit_application(self):
+        self._force_quit = True
         if hasattr(self, "_hotkey_listener") and self._hotkey_listener:
             try:
                 self._hotkey_listener.stop_listening()
@@ -5283,7 +5380,45 @@ class MainWindow(QMainWindow):
                 self._spotlight.close()
             except Exception:
                 pass
-        super().closeEvent(event)
+        if hasattr(self, "_tray_icon") and self._tray_icon:
+            try:
+                self._tray_icon.hide()
+            except Exception:
+                pass
+        self.close()
+        QApplication.quit()
+
+    def closeEvent(self, event):
+        if getattr(self, "_force_quit", False):
+            if hasattr(self, "_hotkey_listener") and self._hotkey_listener:
+                try:
+                    self._hotkey_listener.stop_listening()
+                except Exception:
+                    pass
+            if hasattr(self, "_spotlight") and self._spotlight:
+                try:
+                    self._spotlight.close()
+                except Exception:
+                    pass
+            if hasattr(self, "_tray_icon") and self._tray_icon:
+                try:
+                    self._tray_icon.hide()
+                except Exception:
+                    pass
+            super().closeEvent(event)
+            QApplication.quit()
+        else:
+            event.ignore()
+            self.hide()
+            if not getattr(self, "_tray_notified", False):
+                self._tray_notified = True
+                if hasattr(self, "_tray_icon") and self._tray_icon and self._tray_icon.isVisible():
+                    self._tray_icon.showMessage(
+                        f"{self._assistant_name} — Running in Background",
+                        f"{self._assistant_name} is running in your system tray.\nClick the tray icon to restore or press Alt + Space.",
+                        QSystemTrayIcon.MessageIcon.Information,
+                        3000
+                    )
 
     def send_command(self, cmd: str):
         cmd = cmd.strip()
@@ -5353,6 +5488,7 @@ class _RootShim:
 class JarvisUI:
     def __init__(self, face_path: str, size=None):
         self._app = QApplication.instance() or QApplication(sys.argv)
+        self._app.setQuitOnLastWindowClosed(False)
         self._app.setStyle("Fusion")
         app_ico = get_adam_icon()
         if not app_ico.isNull():
