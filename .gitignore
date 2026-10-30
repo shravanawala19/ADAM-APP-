@@ -1,0 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller build & distribution folders
+build/
+dist/
+*.egg-info/
+
+# User secrets & local runtime data
+config/api_keys.json
+memory/*.json
+memory/*.db
+memory/*.sqlite*
+*.log
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# OS / IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
