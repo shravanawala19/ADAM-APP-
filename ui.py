@@ -1247,7 +1247,7 @@ class _CameraPreview(QWidget):
 
 class SetupOverlay(QWidget):
     done = pyqtSignal(str, str)
-    _OW, _OH = 560, 520
+    _OW, _OH = 560, 560
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1326,7 +1326,20 @@ class SetupOverlay(QWidget):
         get_key_btn.clicked.connect(lambda: webbrowser.open("https://aistudio.google.com/app/apikey"))
         kb_lay.addWidget(get_key_btn)
 
-        step_hint = QLabel("💡 100% Free · Click above to get your key, then paste below:")
+        link_lbl = QLabel(
+            '<div style="text-align: center; line-height: 1.4;">' 
+            '<span style="color: #C3BDB3; font-size: 11px;">Direct link: </span>' 
+            '<a href="https://aistudio.google.com/app/apikey" style="color: #E07A5F; font-weight: bold; text-decoration: underline; font-size: 11px;">' 
+            'https://aistudio.google.com/app/apikey ↗</a>' 
+            '</div>'
+        )
+        link_lbl.setTextFormat(Qt.TextFormat.RichText)
+        link_lbl.setOpenExternalLinks(True)
+        link_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
+        link_lbl.setStyleSheet("background: transparent; border: none; padding: 2px 0;")
+        kb_lay.addWidget(link_lbl)
+
+        step_hint = QLabel("💡 100% Free · No credit card required · Click button or link above, then paste your key below:")
         step_hint.setFont(app_font(8))
         step_hint.setStyleSheet(f"color: {C.TEXT_MED}; background: transparent; border: none;")
         kb_lay.addWidget(step_hint)
@@ -1381,9 +1394,16 @@ class SetupOverlay(QWidget):
 
         layout.addLayout(inp_row)
 
-        self._val_lbl = QLabel("Key usually starts with 'AIzaSy...'")
+        self._val_lbl = QLabel(
+            '<span style="color: #8C857B;">Key usually starts with "AIzaSy..." · Generate at </span>' 
+            '<a href="https://aistudio.google.com/app/apikey" style="color: #D97757; text-decoration: underline;">' 
+            'Google AI Studio ↗</a>'
+        )
         self._val_lbl.setFont(app_font(8))
-        self._val_lbl.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent;")
+        self._val_lbl.setTextFormat(Qt.TextFormat.RichText)
+        self._val_lbl.setOpenExternalLinks(True)
+        self._val_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._val_lbl.setStyleSheet("background: transparent;")
         layout.addWidget(self._val_lbl)
 
         layout.addSpacing(4)
