@@ -23,6 +23,8 @@ AllowNoIcons=yes
 OutputDir={#MyOutputDir}
 OutputBaseFilename=ADAM-Setup-1.0.0
 SetupIconFile=C:\Users\Shravan\Downloads\Compressed\Mark-LIII-main\Mark-LIII-main\config\adam.ico
+UninstallDisplayIcon={app}\config\adam.ico
+ChangesAssociations=yes
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -43,9 +45,9 @@ Source: "{#MyAppSourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesub
 Source: "C:\Users\Shravan\Downloads\Compressed\Mark-LIII-main\Mark-LIII-main\config\adam.ico"; DestDir: "{app}\config"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\config\adam.ico"
+Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\config\adam.ico"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\config\adam.ico"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent

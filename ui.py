@@ -458,13 +458,6 @@ class HudCanvas(QWidget):
         self._base_scale = 1.0
         self._base_halo  = 60.0
 
-        for _ in range(24):
-            self._particles.append([
-                random.uniform(0, 400), random.uniform(0, 400),
-                random.uniform(-0.3, 0.3), random.uniform(-0.3, 0.3),
-                random.uniform(0.2, 0.8)
-            ])
-
         self._tmr = QTimer(self)
         self._tmr.timeout.connect(self._step)
         self._tmr.start(16)
@@ -545,11 +538,6 @@ class HudCanvas(QWidget):
         self._scale += (self._base_scale - self._scale) * sp
         self._halo  += (self._base_halo  - self._halo)  * sp
 
-        W, H = max(10, self.width()), max(10, self.height())
-        for pt in self._particles:
-            pt[0] = (pt[0] + pt[2]) % W
-            pt[1] = (pt[1] + pt[3]) % H
-
         self._blink_tick += 1
         if self._blink_tick >= 36:
             self._blink = not self._blink
@@ -584,32 +572,32 @@ class HudCanvas(QWidget):
         if self.muted:
             main_col  = qcol(C.MUTED_C)
             dark_col  = qcol("#3D241C")
-            state_txt = "MUTED"
+            state_txt = "Muted"
             dot_col   = qcol(C.RED)
         elif self.speaking:
             main_col  = qcol(C.PRI)
             dark_col  = qcol(C.PRI_DIM)
-            state_txt = "SPEAKING"
+            state_txt = "Speaking"
             dot_col   = qcol(C.PRI)
         elif self.state in ("THINKING", "PROCESSING"):
             main_col  = qcol(C.ACC2)
             dark_col  = qcol("#4A3416")
-            state_txt = "THINKING"
+            state_txt = "Thinking"
             dot_col   = qcol(C.ACC2)
         elif self.state == "SLEEPING":
             main_col  = qcol(C.TEXT_DIM)
             dark_col  = qcol("#22201D")
-            state_txt = "ASLEEP"
+            state_txt = "Asleep"
             dot_col   = qcol(C.TEXT_DIM)
         elif self.state == "LISTENING":
             main_col  = qcol(C.PRI)
             dark_col  = qcol(C.PRI_DIM)
-            state_txt = "LISTENING"
+            state_txt = "Listening"
             dot_col   = qcol(C.GREEN)
         else:
             main_col  = qcol(C.PRI)
             dark_col  = qcol(C.PRI_DIM)
-            state_txt = str(self.state).upper()
+            state_txt = str(self.state).capitalize()
             dot_col   = qcol(C.PRI)
 
         # Bust center and size
@@ -617,23 +605,14 @@ class HudCanvas(QWidget):
         bust_cy = stage_rect.top() + avail_h * 0.41
         bust_sz = int(min(stage_rect.width() * 0.76, avail_h * 0.66) * self._scale)
 
-        # Warm Ambient Golden/Terracotta Neural Glow behind the Bust
-        glow_rad = max(80.0, bust_sz * 0.62)
+        # Quiet neutral atmosphere behind the bust
+        glow_rad = max(60.0, bust_sz * 0.52)
         glow = QRadialGradient(cx, bust_cy - bust_sz * 0.05, glow_rad)
-        glow_alpha = int(max(24, min(95, self._halo * 0.58)))
-        glow.setColorAt(0.0, QColor(217, 119, 87, glow_alpha))
-        glow.setColorAt(0.45, QColor(212, 157, 66, int(glow_alpha * 0.42)))
+        glow.setColorAt(0.0, QColor(43, 40, 36, 120))
         glow.setColorAt(1.0, QColor(20, 19, 17, 0))
         p.setBrush(QBrush(glow))
         p.setPen(Qt.PenStyle.NoPen)
         p.drawEllipse(QRectF(cx - glow_rad, bust_cy - glow_rad, glow_rad * 2, glow_rad * 2))
-
-        # Subtle floating golden dust particles inside the stage
-        for pt in self._particles:
-            if stage_rect.contains(QPointF(pt[0], pt[1])):
-                p_alpha = int(pt[4] * 85)
-                p.setBrush(QBrush(QColor(217, 119, 87, p_alpha)))
-                p.drawEllipse(QPointF(pt[0], pt[1]), 1.4, 1.4)
 
         # Render the Sculpted Obsidian & Terracotta ADAM Bust
         if self._face_px:
@@ -689,30 +668,24 @@ class HudCanvas(QWidget):
             p.setBrush(QBrush(b_col))
             p.drawRoundedRect(QRectF(bx, by, bw, hgt), 1.6, 1.6)
 
-        # Rounded State Pill overlapping bottom of inner stage ('LISTENING ●')
-        pill_w, pill_h = 132.0, 30.0
+        # Crisp State Indicator Tag overlapping bottom of inner stage ('Listening ●')
+        pill_w, pill_h = 120.0, 26.0
         px = cx - pill_w / 2.0
         py = stage_rect.bottom() - pill_h - 14.0
-        p.setBrush(QBrush(QColor(38, 36, 33, 240)))
-        p.setPen(QPen(QColor(74, 69, 63, 180), 1.0))
-        p.drawRoundedRect(QRectF(px, py, pill_w, pill_h), 15.0, 15.0)
+        p.setBrush(QBrush(QColor(32, 30, 28, 240)))
+        p.setPen(QPen(QColor(60, 56, 51), 1.0))
+        p.drawRoundedRect(QRectF(px, py, pill_w, pill_h), 6.0, 6.0)
 
         p.setFont(app_font(8, bold=True))
         p.setPen(QPen(qcol(C.TEXT)))
-        p.drawText(QRectF(px + 14, py, pill_w - 38, pill_h), Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, state_txt)
+        p.drawText(QRectF(px + 12, py, pill_w - 32, pill_h), Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, state_txt)
 
-        # Glowing Status Dot inside right of pill
-        dot_x = px + pill_w - 20.0
+        # Crisp Solid Status Dot inside right of tag
+        dot_x = px + pill_w - 16.0
         dot_y = py + pill_h / 2.0
-        dot_glow = QRadialGradient(dot_x, dot_y, 9.0)
-        dot_glow.setColorAt(0.0, QColor(dot_col.red(), dot_col.green(), dot_col.blue(), 190))
-        dot_glow.setColorAt(1.0, QColor(dot_col.red(), dot_col.green(), dot_col.blue(), 0))
-        p.setBrush(QBrush(dot_glow))
-        p.setPen(Qt.PenStyle.NoPen)
-        p.drawEllipse(QPointF(dot_x, dot_y), 9.0, 9.0)
-
         p.setBrush(QBrush(dot_col))
-        p.drawEllipse(QPointF(dot_x, dot_y), 4.5, 4.5)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawEllipse(QPointF(dot_x, dot_y), 3.5, 3.5)
 
         p.end()
 
@@ -765,13 +738,9 @@ class RadialGauge(QWidget):
             arc_col = qcol(self._color)
 
         if self._value > 0.5:
-            glow_pen = QPen(QColor(arc_col.red(), arc_col.green(), arc_col.blue(), 55), 9.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
-            p.setPen(glow_pen)
-            span_angle = int(-self._value * 3.6 * 16)
-            p.drawArc(rect, 90 * 16, span_angle)
-
-            arc_pen = QPen(arc_col, 5.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+            arc_pen = QPen(arc_col, 5.0, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
             p.setPen(arc_pen)
+            span_angle = int(-self._value * 3.6 * 16)
             p.drawArc(rect, 90 * 16, span_angle)
 
         # Center percentage text
@@ -3166,88 +3135,87 @@ class SpotlightBar(QWidget):
         self._container.setObjectName("spotlightContainer")
         self._container.setStyleSheet(f"""
             #spotlightContainer {{
-                background-color: {C.BG};
-                border: 1.5px solid {C.BORDER_B};
-                border-radius: 16px;
+                background-color: #1A1916;
+                border: 1px solid #38342F;
+                border-radius: 12px;
             }}
-            #spotlightContainer:hover {{
-                border: 1.5px solid {C.PRI};
+            #spotlightContainer:focus-within {{
+                border: 1px solid {C.PRI};
             }}
         """)
 
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(24)
-        shadow.setColor(QColor(0, 0, 0, 200))
-        shadow.setOffset(0, 6)
+        shadow.setBlurRadius(20)
+        shadow.setColor(QColor(0, 0, 0, 160))
+        shadow.setOffset(0, 4)
         self._container.setGraphicsEffect(shadow)
 
         layout = QHBoxLayout(self._container)
-        layout.setContentsMargins(16, 8, 14, 8)
-        layout.setSpacing(12)
+        layout.setContentsMargins(14, 8, 12, 8)
+        layout.setSpacing(10)
 
         # Icon / Logo
         self._icon_lbl = QLabel()
-        self._icon_lbl.setFixedSize(28, 28)
+        self._icon_lbl.setFixedSize(24, 24)
         self._icon_lbl.setScaledContents(True)
         ico_file = Path(__file__).resolve().parent / "config" / "adam_logo.png"
         if not ico_file.exists():
             ico_file = Path(__file__).resolve().parent / "config" / "adam.ico"
         if ico_file.exists():
             pm = QPixmap(str(ico_file)).scaled(
-                28, 28,
+                24, 24,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
             self._icon_lbl.setPixmap(pm)
         else:
             self._icon_lbl.setText("◈")
-            self._icon_lbl.setStyleSheet(f"color: {C.PRI}; font-size: 18px;")
+            self._icon_lbl.setStyleSheet(f"color: {C.PRI}; font-size: 16px;")
         layout.addWidget(self._icon_lbl)
 
         # Separator dot
         dot = QLabel("•")
-        dot.setStyleSheet(f"color: {C.BORDER_A}; font-size: 12px;")
+        dot.setStyleSheet(f"color: {C.BORDER_A}; font-size: 11px;")
         layout.addWidget(dot)
 
         # Text input
         self._input = QLineEdit()
-        self._input.setPlaceholderText("Ask ADAM anything, or type a command...")
+        self._input.setPlaceholderText("Command or question...")
         self._input.setStyleSheet(f"""
             QLineEdit {{
                 background: transparent;
                 border: none;
                 color: {C.TEXT};
                 font-family: 'Segoe UI', sans-serif;
-                font-size: 15px;
+                font-size: 14px;
                 selection-background-color: {C.PRI};
                 selection-color: #FFFFFF;
             }}
             QLineEdit::placeholder {{
                 color: {C.TEXT_DIM};
-                font-style: italic;
             }}
         """)
         self._input.returnPressed.connect(self._on_enter)
         layout.addWidget(self._input, 1)
 
         # Esc badge
-        esc_badge = QLabel("ESC")
+        esc_badge = QLabel("Esc")
         esc_badge.setStyleSheet(f"""
             QLabel {{
-                background-color: {C.PANEL};
+                background-color: #24221F;
                 color: {C.TEXT_DIM};
-                border: 1px solid {C.BORDER};
-                border-radius: 6px;
-                padding: 3px 7px;
+                border: 1px solid #38342F;
+                border-radius: 4px;
+                padding: 3px 6px;
                 font-family: 'Consolas', monospace;
-                font-size: 11px;
-                font-weight: bold;
+                font-size: 10px;
+                font-weight: 500;
             }}
         """)
         layout.addWidget(esc_badge)
 
         # Enter button
-        self._btn_send = QPushButton("↵ SEND")
+        self._btn_send = QPushButton("Return ↵")
         self._btn_send.setToolTip("Execute Command (Enter)")
         self._btn_send.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_send.setStyleSheet(f"""
@@ -3256,10 +3224,10 @@ class SpotlightBar(QWidget):
                 color: #FFFFFF;
                 border: none;
                 border-radius: 6px;
-                padding: 4px 12px;
+                padding: 4px 10px;
                 font-family: 'Segoe UI', sans-serif;
-                font-size: 12px;
-                font-weight: bold;
+                font-size: 11px;
+                font-weight: 500;
             }}
             QPushButton:hover {{
                 background-color: {C.ACC};
@@ -3479,45 +3447,52 @@ class MainWindow(QMainWindow):
 
         hero_hdr = QHBoxLayout()
         hero_hdr.setContentsMargins(4, 0, 4, 2)
-        hero_title = QLabel("Hero Card")
+        hero_title = QLabel("Voice Studio")
         hero_title.setFont(app_font(9, bold=True))
         hero_title.setStyleSheet(f"color: {C.TEXT}; background: transparent; border: none;")
         hero_hdr.addWidget(hero_title)
         hero_hdr.addStretch()
-        hero_dots = QPushButton("•••")
-        hero_dots.setFixedSize(28, 22)
+        hero_dots = QPushButton("Theme")
+        hero_dots.setFixedHeight(22)
+        hero_dots.setFont(app_font(7, bold=True))
         hero_dots.setCursor(Qt.CursorShape.PointingHandCursor)
-        hero_dots.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent; border: none; font-weight: bold;")
+        hero_dots.setStyleSheet(f"""
+            QPushButton {{
+                color: {C.TEXT_DIM}; background: transparent;
+                border: 1px solid #35312D; border-radius: 4px; padding: 0 8px;
+            }}
+            QPushButton:hover {{ color: {C.PRI}; border-color: {C.PRI}; }}
+        """)
         hero_dots.clicked.connect(self._open_customize)
         hero_hdr.addWidget(hero_dots)
         hero_lay.addLayout(hero_hdr)
 
         hero_lay.addWidget(self._hud_cam_stack, stretch=1)
 
-        # Floating Pill Action Bar at the bottom of the Hero Card
+        # Action bar at bottom of Voice Studio
         pill_bar = QHBoxLayout()
         pill_bar.setContentsMargins(8, 4, 8, 0)
-        pill_bar.setSpacing(10)
+        pill_bar.setSpacing(8)
         pill_bar.addStretch()
 
-        self._mute_btn = QPushButton("🎙  Mic")
-        self._mute_btn.setFixedHeight(32)
-        self._mute_btn.setMinimumWidth(86)
+        self._mute_btn = QPushButton("Mic")
+        self._mute_btn.setFixedHeight(30)
+        self._mute_btn.setMinimumWidth(80)
         self._mute_btn.setFont(app_font(8, QFont.Weight.Bold))
         self._mute_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._mute_btn.clicked.connect(self._toggle_mute)
         self._style_mute_btn()
         pill_bar.addWidget(self._mute_btn)
 
-        self._cam_btn = QPushButton("📷  Camera")
-        self._cam_btn.setFixedHeight(32)
-        self._cam_btn.setMinimumWidth(98)
+        self._cam_btn = QPushButton("Camera")
+        self._cam_btn.setFixedHeight(30)
+        self._cam_btn.setMinimumWidth(84)
         self._cam_btn.setFont(app_font(8, QFont.Weight.Bold))
         self._cam_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._cam_btn.setStyleSheet(f"""
             QPushButton {{
-                background: #272522; color: {C.TEXT};
-                border: 1px solid #3E3A35; border-radius: 16px; padding: 0 14px;
+                background: #24221F; color: {C.TEXT};
+                border: 1px solid #38342F; border-radius: 8px; padding: 0 12px;
             }}
             QPushButton:hover {{
                 background: {C.PRI_GHO}; color: {C.PRI}; border-color: {C.PRI};
@@ -3526,15 +3501,15 @@ class MainWindow(QMainWindow):
         self._cam_btn.clicked.connect(self._toggle_camera_btn)
         pill_bar.addWidget(self._cam_btn)
 
-        self._hero_settings_btn = QPushButton("⚙  Settings")
-        self._hero_settings_btn.setFixedHeight(32)
-        self._hero_settings_btn.setMinimumWidth(98)
+        self._hero_settings_btn = QPushButton("Controls")
+        self._hero_settings_btn.setFixedHeight(30)
+        self._hero_settings_btn.setMinimumWidth(84)
         self._hero_settings_btn.setFont(app_font(8, QFont.Weight.Bold))
         self._hero_settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._hero_settings_btn.setStyleSheet(f"""
             QPushButton {{
-                background: #272522; color: {C.TEXT};
-                border: 1px solid #3E3A35; border-radius: 16px; padding: 0 14px;
+                background: #24221F; color: {C.TEXT};
+                border: 1px solid #38342F; border-radius: 8px; padding: 0 12px;
             }}
             QPushButton:hover {{
                 background: {C.PRI_GHO}; color: {C.PRI}; border-color: {C.PRI};
@@ -3543,15 +3518,15 @@ class MainWindow(QMainWindow):
         self._hero_settings_btn.clicked.connect(lambda: self._drawer_btn.click())
         pill_bar.addWidget(self._hero_settings_btn)
 
-        self._interrupt_btn = QPushButton("✋  Stop")
-        self._interrupt_btn.setFixedHeight(32)
-        self._interrupt_btn.setMinimumWidth(80)
+        self._interrupt_btn = QPushButton("Stop")
+        self._interrupt_btn.setFixedHeight(30)
+        self._interrupt_btn.setMinimumWidth(72)
         self._interrupt_btn.setFont(app_font(8, QFont.Weight.Bold))
         self._interrupt_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._interrupt_btn.setStyleSheet(f"""
             QPushButton {{
                 background: #271C19; color: {C.MUTED_C};
-                border: 1px solid #52332A; border-radius: 16px; padding: 0 12px;
+                border: 1px solid #52332A; border-radius: 8px; padding: 0 10px;
             }}
             QPushButton:hover {{
                 background: #3D241C; border-color: {C.PRI}; color: {C.WHITE};
@@ -3813,7 +3788,8 @@ class MainWindow(QMainWindow):
             sh = Dispatch("WScript.Shell")
             sc = sh.CreateShortCut(lnk)
             sc.TargetPath       = target
-            sc.Arguments        = f'"{args}"'
+            if args:
+                sc.Arguments    = f'"{args}"'
             sc.WorkingDirectory = work_dir
             sc.Description      = "ADAM — Personal AI Assistant by avsco"
             sc.IconLocation     = icon_loc
@@ -3824,16 +3800,21 @@ class MainWindow(QMainWindow):
 
         # ── Option 2: wscript.exe + VBScript (always available on Windows,
         #    GUI-mode executable — never opens a console window) ────────────
-        vbs = "\n".join([
+        args_stmt = f'sc.Arguments = Chr(34) & "{args}" & Chr(34)' if args else ''
+        vbs_lines = [
             'Set ws = CreateObject("WScript.Shell")',
             f'Set sc = ws.CreateShortcut("{lnk}")',
             f'sc.TargetPath = "{target}"',
-            f'sc.Arguments = Chr(34) & "{args}" & Chr(34)',
+        ]
+        if args_stmt:
+            vbs_lines.append(args_stmt)
+        vbs_lines.extend([
             f'sc.WorkingDirectory = "{work_dir}"',
             'sc.Description = "ADAM — Personal AI Assistant by avsco"',
             f'sc.IconLocation = "{icon_loc}"',
             'sc.Save',
         ])
+        vbs = "\n".join(vbs_lines)
         import tempfile
         fd, tmp = tempfile.mkstemp(suffix=".vbs")
         try:
@@ -3951,12 +3932,26 @@ class MainWindow(QMainWindow):
 
             # ── Windows ───────────────────────────────────────────────────────
             if _os == "Windows":
-                pythonw  = python.parent / "pythonw.exe"
-                target   = str(pythonw if pythonw.exists() else python)
-                lnk      = str(desktop / "ADAM.lnk")
-                icon_loc = str(ico_path) if ico_path.exists() else f"{target},0"
-                self._create_lnk_windows(lnk, target, str(script),
-                                         str(script.parent), icon_loc)
+                if getattr(sys, "frozen", False):
+                    target   = str(Path(sys.executable).resolve())
+                    args     = ""
+                    work_dir = str(Path(target).parent)
+                    cand_ico = Path(target).parent / "config" / "adam.ico"
+                    icon_loc = str(cand_ico) if cand_ico.exists() else f"{target},0"
+                else:
+                    pythonw  = python.parent / "pythonw.exe"
+                    target   = str(pythonw if pythonw.exists() else python)
+                    args     = str(script)
+                    work_dir = str(script.parent)
+                    icon_loc = str(ico_path) if ico_path.exists() else f"{target},0"
+
+                lnk = str(desktop / "ADAM.lnk")
+                self._create_lnk_windows(lnk, target, args, work_dir, icon_loc)
+                try:
+                    import ctypes
+                    ctypes.windll.shell32.SHChangeNotify(0x08000000, 0x0000, None, None)
+                except Exception:
+                    pass
 
             # ── macOS — proper .app bundle (no Terminal window) ───────────────
             elif _os == "Darwin":
@@ -4170,14 +4165,14 @@ class MainWindow(QMainWindow):
 
         lay.addSpacing(8)
 
-        self._drawer_btn = QPushButton("⚙  Controls")
+        self._drawer_btn = QPushButton("Controls")
         self._drawer_btn.setFixedHeight(26)
         self._drawer_btn.setFont(app_font(8, bold=True))
         self._drawer_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._drawer_btn.setStyleSheet(f"""
             QPushButton {{
                 background: #1C1B18; color: {C.TEXT_MED};
-                border: 1px solid #35312D; border-radius: 13px; padding: 0 12px;
+                border: 1px solid #35312D; border-radius: 6px; padding: 0 10px;
             }}
             QPushButton:hover {{ color: {C.PRI}; border-color: {C.PRI}; background: {C.PRI_GHO}; }}
             QPushButton:checked {{ color: {C.PRI}; border-color: {C.PRI}; background: {C.PRI_GHO}; }}
@@ -4188,11 +4183,11 @@ class MainWindow(QMainWindow):
 
         lay.addStretch()
 
-        # Right: Quick Action Pills + Clock
+        # Right: Quick Action Controls + Clock
         for lbl_txt, cmd_cb in [
-            ("☀ Brief", lambda: self.send_command("give me a morning briefing")),
-            ("🌐 Web", lambda: (self._input.setText("search the web for "), self._input.setFocus())),
-            ("↩ Undo", lambda: self.send_command("undo")),
+            ("Briefing", lambda: self.send_command("give me a morning briefing")),
+            ("Search", lambda: (self._input.setText("search the web for "), self._input.setFocus())),
+            ("Undo", lambda: self.send_command("undo")),
         ]:
             qbtn = QPushButton(lbl_txt)
             qbtn.setFixedHeight(24)
@@ -4201,7 +4196,7 @@ class MainWindow(QMainWindow):
             qbtn.setStyleSheet(f"""
                 QPushButton {{
                     background: #1C1B18; color: {C.TEXT_DIM};
-                    border: 1px solid #2E2B27; border-radius: 12px; padding: 0 10px;
+                    border: 1px solid #2E2B27; border-radius: 6px; padding: 0 8px;
                 }}
                 QPushButton:hover {{ color: {C.PRI}; border-color: {C.PRI_DIM}; }}
             """)
@@ -4242,7 +4237,7 @@ class MainWindow(QMainWindow):
             }
         """
 
-        # ── Card 1: System Telemetry Card (3 Circular Radial Gauges) ─────────
+        # ── Card 1: System Hardware (3 Circular Gauges) ─────────────────────
         c1 = QFrame()
         c1.setObjectName("BentoCard")
         c1.setStyleSheet(card_ss)
@@ -4251,15 +4246,11 @@ class MainWindow(QMainWindow):
         c1_lay.setSpacing(8)
 
         c1_hdr = QHBoxLayout()
-        c1_title = QLabel("System Telemetry Card")
+        c1_title = QLabel("System Hardware")
         c1_title.setFont(app_font(9, bold=True))
         c1_title.setStyleSheet(f"color: {C.TEXT}; background: transparent; border: none;")
         c1_hdr.addWidget(c1_title)
         c1_hdr.addStretch()
-        c1_dots = QLabel("•••")
-        c1_dots.setFont(app_font(8, bold=True))
-        c1_dots.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent; border: none;")
-        c1_hdr.addWidget(c1_dots)
         c1_lay.addLayout(c1_hdr)
 
         gauges_row = QHBoxLayout()
@@ -4281,12 +4272,12 @@ class MainWindow(QMainWindow):
 
         sub_meta = QHBoxLayout()
         sub_meta.setContentsMargins(2, 0, 2, 0)
-        self._uptime_lbl = QLabel("UP  --:--")
+        self._uptime_lbl = QLabel("Up  --:--")
         self._uptime_lbl.setFont(app_font(7))
         self._uptime_lbl.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent; border: none;")
         sub_meta.addWidget(self._uptime_lbl)
         sub_meta.addStretch()
-        self._proc_lbl = QLabel("PROC  --")
+        self._proc_lbl = QLabel("Proc  --")
         self._proc_lbl.setFont(app_font(7))
         self._proc_lbl.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent; border: none;")
         sub_meta.addWidget(self._proc_lbl)
@@ -4294,7 +4285,7 @@ class MainWindow(QMainWindow):
 
         lay.addWidget(c1)
 
-        # ── Card 2: File Analysis Card ───────────────────────────────────────
+        # ── Card 2: File Inspector ──────────────────────────────────────────
         c2 = QFrame()
         c2.setObjectName("BentoCard")
         c2.setStyleSheet(card_ss)
@@ -4303,15 +4294,11 @@ class MainWindow(QMainWindow):
         c2_lay.setSpacing(8)
 
         c2_hdr = QHBoxLayout()
-        c2_title = QLabel("File Analysis Card")
+        c2_title = QLabel("File Inspector")
         c2_title.setFont(app_font(9, bold=True))
         c2_title.setStyleSheet(f"color: {C.TEXT}; background: transparent; border: none;")
         c2_hdr.addWidget(c2_title)
         c2_hdr.addStretch()
-        c2_dots = QLabel("•••")
-        c2_dots.setFont(app_font(8, bold=True))
-        c2_dots.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent; border: none;")
-        c2_hdr.addWidget(c2_dots)
         c2_lay.addLayout(c2_hdr)
 
         self._drop_zone = FileDropZone()
@@ -4329,7 +4316,7 @@ class MainWindow(QMainWindow):
 
         lay.addWidget(c2, stretch=1)
 
-        # ── Card 3: Toggles & Studio Controls Card ───────────────────────────
+        # ── Card 3: Quick Controls ──────────────────────────────────────────
         c3 = QFrame()
         c3.setObjectName("BentoCard")
         c3.setStyleSheet(card_ss)
@@ -4337,16 +4324,16 @@ class MainWindow(QMainWindow):
         c3_lay.setContentsMargins(14, 12, 14, 12)
         c3_lay.setSpacing(10)
 
-        def _make_toggle_row(icon_char: str, label_text: str, active: bool, callback):
+        def _make_toggle_row(bullet: str, label_text: str, active: bool, callback):
             row_w = QWidget()
             row_w.setStyleSheet("background: transparent; border: none;")
             rl = QHBoxLayout(row_w)
             rl.setContentsMargins(2, 0, 2, 0)
             rl.setSpacing(10)
-            ic = QLabel(icon_char)
-            ic.setFont(app_font(10))
-            ic.setFixedWidth(20)
-            ic.setStyleSheet(f"color: {C.TEXT_MED}; background: transparent;")
+            ic = QLabel(bullet)
+            ic.setFont(app_font(9))
+            ic.setFixedWidth(14)
+            ic.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent;")
             rl.addWidget(ic)
             lbl = QLabel(label_text)
             lbl.setFont(app_font(8, bold=True))
@@ -4355,7 +4342,7 @@ class MainWindow(QMainWindow):
             sw = QPushButton()
             sw.setCheckable(True)
             sw.setChecked(active)
-            sw.setFixedSize(40, 21)
+            sw.setFixedSize(38, 20)
             sw.setCursor(Qt.CursorShape.PointingHandCursor)
             self._style_bento_switch(sw, active)
             sw.clicked.connect(lambda checked, b=sw, cb=callback: (self._style_bento_switch(b, checked), cb(checked)))
@@ -4363,13 +4350,13 @@ class MainWindow(QMainWindow):
             return row_w, lbl, sw
 
         r1, self._bento_wake_lbl, self._bento_wake_sw = _make_toggle_row(
-            "🎙", "Wake Word: Active", True, lambda _: self._toggle_wake_word()
+            "•", "Wake word detection", True, lambda _: self._toggle_wake_word()
         )
         r2, self._bento_vis_lbl, self._bento_vis_sw = _make_toggle_row(
-            "👁", "Vision", True, lambda _: self.send_command("look at my screen and tell me what you see")
+            "•", "Screen vision", True, lambda _: self.send_command("look at my screen and tell me what you see")
         )
         r3, self._bento_rem_lbl, self._bento_rem_sw = _make_toggle_row(
-            "📱", "Phone Remote", False, lambda _: self._open_remote()
+            "•", "Phone remote gateway", False, lambda _: self._open_remote()
         )
 
         c3_lay.addWidget(r1)
@@ -4381,21 +4368,21 @@ class MainWindow(QMainWindow):
 
     def _style_bento_switch(self, btn: QPushButton, active: bool):
         if active:
-            btn.setText("   ●")
+            btn.setText("●")
             btn.setStyleSheet("""
                 QPushButton {
                     background: #DF9B6D; color: #1C1B18;
-                    border: 1px solid #DF9B6D; border-radius: 10px;
-                    font-weight: bold; font-size: 11px; padding-right: 3px;
+                    border: 1px solid #DF9B6D; border-radius: 6px;
+                    font-weight: bold; font-size: 10px;
                 }
             """)
         else:
-            btn.setText("●   ")
+            btn.setText("○")
             btn.setStyleSheet("""
                 QPushButton {
-                    background: #2C2A27; color: #8C857B;
-                    border: 1px solid #3E3A35; border-radius: 10px;
-                    font-weight: bold; font-size: 11px; padding-left: 3px;
+                    background: #24221F; color: #8C857B;
+                    border: 1px solid #38342F; border-radius: 6px;
+                    font-weight: bold; font-size: 10px;
                 }
             """)
 
@@ -4415,7 +4402,7 @@ class MainWindow(QMainWindow):
             }
         """
 
-        # ── Top Card: Live conversation log ──────────────────────────────────
+        # ── Top Card: Conversation Transcripts ──────────────────────────────
         top_card = QFrame()
         top_card.setObjectName("BentoCard")
         top_card.setStyleSheet(card_ss)
@@ -4424,15 +4411,11 @@ class MainWindow(QMainWindow):
         tc_lay.setSpacing(8)
 
         tc_hdr = QHBoxLayout()
-        tc_title = QLabel("Live conversation log")
+        tc_title = QLabel("Transcripts")
         tc_title.setFont(app_font(9, bold=True))
         tc_title.setStyleSheet(f"color: {C.TEXT}; background: transparent; border: none;")
         tc_hdr.addWidget(tc_title)
         tc_hdr.addStretch()
-        tc_dots = QLabel("•••")
-        tc_dots.setFont(app_font(8, bold=True))
-        tc_dots.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent; border: none;")
-        tc_hdr.addWidget(tc_dots)
         tc_lay.addLayout(tc_hdr)
 
         self._log = LogWidget()
@@ -4441,7 +4424,7 @@ class MainWindow(QMainWindow):
                 background: #151412;
                 color: {C.TEXT};
                 border: 1px solid #2C2926;
-                border-radius: 10px;
+                border-radius: 8px;
                 padding: 8px;
                 selection-background-color: {C.PRI_GHO};
             }}
@@ -4459,27 +4442,27 @@ class MainWindow(QMainWindow):
         tc_lay.addWidget(self._log, stretch=1)
         lay.addWidget(top_card, stretch=11)
 
-        # ── Bottom Card: Document and Markdown output ────────────────────────
+        # ── Bottom Card: Workspace Artifacts ────────────────────────────────
         lay.addWidget(self._content_panel, stretch=9)
 
         return w
     def _build_quick_drawer(self) -> QWidget:
-        """Floating overlay panel shown when the ⚙ header button is toggled."""
+        """Floating overlay panel shown when the Controls header button is toggled."""
         _BTN_STYLE_PRI = f"""
             QPushButton {{
-                background: #00091a; color: {C.PRI};
-                border: 1px solid {C.PRI_DIM}; border-radius: 3px;
-                text-align: left; padding: 0 8px;
+                background: #24221F; color: {C.PRI};
+                border: 1px solid {C.BORDER_A}; border-radius: 6px;
+                text-align: left; padding: 0 10px;
             }}
             QPushButton:hover {{ background: {C.PRI_GHO}; border-color: {C.PRI}; }}
         """
         _BTN_STYLE_DIM = f"""
             QPushButton {{
                 background: transparent; color: {C.TEXT_MED};
-                border: 1px solid {C.BORDER}; border-radius: 3px;
-                text-align: left; padding: 0 8px;
+                border: 1px solid {C.BORDER}; border-radius: 6px;
+                text-align: left; padding: 0 10px;
             }}
-            QPushButton:hover {{ color: {C.PRI}; border-color: {C.BORDER_B}; }}
+            QPushButton:hover {{ color: {C.PRI}; border-color: {C.BORDER_B}; background: #22201D; }}
         """
 
         w = QWidget(self.centralWidget())
@@ -4489,7 +4472,7 @@ class MainWindow(QMainWindow):
                 background: {C.DARK};
                 border: 1px solid {C.BORDER_B};
                 border-top: none;
-                border-radius: 0 0 6px 6px;
+                border-radius: 0 0 8px 8px;
             }}
         """)
         w.hide()
@@ -4498,31 +4481,31 @@ class MainWindow(QMainWindow):
         lay.setContentsMargins(10, 8, 10, 10)
         lay.setSpacing(5)
 
-        hdr = QLabel("◈ CONTROLS")
-        hdr.setFont(app_font( 7, QFont.Weight.Bold))
+        hdr = QLabel("Controls")
+        hdr.setFont(app_font(7, QFont.Weight.Bold))
         hdr.setStyleSheet(f"color: {C.PRI_DIM}; background: transparent; "
                           f"border-bottom: 1px solid {C.BORDER}; padding-bottom: 4px;")
         lay.addWidget(hdr)
 
-        remote_btn = QPushButton("◉  REMOTE CONTROL")
+        remote_btn = QPushButton("Remote gateway")
         remote_btn.setFixedHeight(30)
-        remote_btn.setFont(app_font( 8, QFont.Weight.Bold))
+        remote_btn.setFont(app_font(8, QFont.Weight.Bold))
         remote_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         remote_btn.setStyleSheet(_BTN_STYLE_PRI)
         remote_btn.clicked.connect(self._open_remote)
         lay.addWidget(remote_btn)
 
-        fs_btn = QPushButton("⛶  FULLSCREEN  [F11]")
+        fs_btn = QPushButton("Toggle fullscreen [F11]")
         fs_btn.setFixedHeight(26)
-        fs_btn.setFont(app_font( 7))
+        fs_btn.setFont(app_font(7))
         fs_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         fs_btn.setStyleSheet(_BTN_STYLE_DIM)
         fs_btn.clicked.connect(self._toggle_fullscreen)
         lay.addWidget(fs_btn)
 
-        sc_btn = QPushButton("⊞  CREATE DESKTOP SHORTCUT")
+        sc_btn = QPushButton("Create desktop shortcut")
         sc_btn.setFixedHeight(26)
-        sc_btn.setFont(app_font( 7))
+        sc_btn.setFont(app_font(7))
         sc_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         sc_btn.setStyleSheet(_BTN_STYLE_DIM)
         sc_btn.clicked.connect(self._create_desktop_shortcut)
@@ -4675,7 +4658,7 @@ class MainWindow(QMainWindow):
         # ── header row ───────────────────────────────────────────────────────
         hdr = QHBoxLayout(); hdr.setSpacing(6)
 
-        self._content_title_lbl = QLabel("Document and Markdown output")
+        self._content_title_lbl = QLabel("Workspace Artifacts")
         self._content_title_lbl.setFont(app_font(9, bold=True))
         self._content_title_lbl.setStyleSheet(
             f"color: {C.TEXT}; background: transparent; border: none;"
@@ -4687,11 +4670,6 @@ class MainWindow(QMainWindow):
         self._content_ts_lbl.setFont(app_font(7))
         self._content_ts_lbl.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent; border: none;")
         hdr.addWidget(self._content_ts_lbl)
-
-        dots_lbl = QLabel("•••")
-        dots_lbl.setFont(app_font(8, bold=True))
-        dots_lbl.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent; border: none;")
-        hdr.addWidget(dots_lbl)
         lay.addLayout(hdr)
 
         # ── text display ──────────────────────────────────────────────────────
@@ -4743,7 +4721,7 @@ class MainWindow(QMainWindow):
     def _show_content(self, title: str, text: str):
         """Slot — runs on Qt main thread. Updates the Bento Document & Markdown card."""
         import time as _time
-        clean_t = title.strip() if title else "Document and Markdown output"
+        clean_t = title.strip() if title else "Workspace Artifacts"
         self._content_title_lbl.setText(clean_t[:44])
         self._content_ts_lbl.setText(_time.strftime("%H:%M:%S"))
         self._content_display.setPlainText(text)
@@ -4754,21 +4732,24 @@ class MainWindow(QMainWindow):
 
     def _build_footer(self) -> QWidget:
         w = QWidget()
-        w.setFixedHeight(62)
+        w.setFixedHeight(60)
         w.setStyleSheet("background: #141311; border: none;")
         outer = QVBoxLayout(w)
-        outer.setContentsMargins(14, 2, 14, 10)
+        outer.setContentsMargins(14, 2, 14, 8)
         outer.setSpacing(3)
 
-        # Full-Width Terracotta-Bordered Command Input Bar
+        # Full-Width Quiet Bordered Command Input Bar
         bar_frame = QFrame()
         bar_frame.setObjectName("BentoCommandBar")
-        bar_frame.setFixedHeight(42)
+        bar_frame.setFixedHeight(40)
         bar_frame.setStyleSheet(f"""
             QFrame#BentoCommandBar {{
-                background: #231B17;
-                border: 2px solid {C.PRI};
-                border-radius: 10px;
+                background: #1C1B18;
+                border: 1px solid #35312D;
+                border-radius: 8px;
+            }}
+            QFrame#BentoCommandBar:focus-within {{
+                border: 1px solid {C.PRI};
             }}
         """)
         bf_lay = QHBoxLayout(bar_frame)
@@ -4776,7 +4757,7 @@ class MainWindow(QMainWindow):
         bf_lay.setSpacing(8)
 
         self._input = QLineEdit()
-        self._input.setPlaceholderText("Ask ADAM anything or drop a command... [Enter]")
+        self._input.setPlaceholderText("Command or question...")
         self._input.setFont(app_font(9))
         self._input.setStyleSheet(f"""
             QLineEdit {{
@@ -4800,7 +4781,7 @@ class MainWindow(QMainWindow):
         dev_lbl.mousePressEvent = lambda _: webbrowser.open("https://avsco.vercel.app/")
         bf_lay.addWidget(dev_lbl)
 
-        send = QPushButton("✦")
+        send = QPushButton("↵")
         send.setFixedSize(28, 28)
         send.setFont(app_font(9, QFont.Weight.Bold))
         send.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -4809,7 +4790,7 @@ class MainWindow(QMainWindow):
                 background: {C.PRI}; color: #141311;
                 border: none; border-radius: 6px;
             }}
-            QPushButton:hover {{ background: #F4A261; }}
+            QPushButton:hover {{ background: {C.ACC}; }}
         """)
         send.clicked.connect(self._send)
         bf_lay.addWidget(send)
@@ -5316,20 +5297,20 @@ class MainWindow(QMainWindow):
 
     def _style_mute_btn(self):
         if self._muted:
-            self._mute_btn.setText("🔇  Muted")
+            self._mute_btn.setText("Muted")
             self._mute_btn.setStyleSheet(f"""
                 QPushButton {{
                     background: #2D1816; color: {C.MUTED_C};
-                    border: 1px solid {C.MUTED_C}; border-radius: 16px; padding: 0 14px;
+                    border: 1px solid {C.MUTED_C}; border-radius: 8px; padding: 0 12px;
                 }}
                 QPushButton:hover {{ background: #3D201D; }}
             """)
         else:
-            self._mute_btn.setText("🎙  Mic")
+            self._mute_btn.setText("Mic")
             self._mute_btn.setStyleSheet(f"""
                 QPushButton {{
-                    background: #272522; color: {C.TEXT};
-                    border: 1px solid #3E3A35; border-radius: 16px; padding: 0 14px;
+                    background: #24221F; color: {C.TEXT};
+                    border: 1px solid #38342F; border-radius: 8px; padding: 0 12px;
                 }}
                 QPushButton:hover {{ background: {C.PRI_GHO}; color: {C.PRI}; border-color: {C.PRI}; }}
             """)
